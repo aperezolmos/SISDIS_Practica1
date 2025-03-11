@@ -64,8 +64,9 @@ public class ChatServerImpl implements ChatServer {
                 thread.start();
             }
         } catch (IOException e) {
-        	//shutdown¿?
+        	shutdown();
             System.out.println("ERROR en el servidor: " + e.getMessage());
+            e.printStackTrace();
         }
 	}
 
