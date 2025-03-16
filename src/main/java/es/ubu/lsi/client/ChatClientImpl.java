@@ -15,6 +15,7 @@ public class ChatClientImpl implements ChatClient {
 	
 	private static final String DEFAULT_SERVER = "localhost";
 	
+	
 	private String server;
 	
 	private String username;
@@ -25,6 +26,7 @@ public class ChatClientImpl implements ChatClient {
 	
 	private int id;
 	
+	
 	private Socket socket;
 	
 	private ObjectInputStream input;
@@ -34,6 +36,7 @@ public class ChatClientImpl implements ChatClient {
     // --------------------------------------------------------------------------------
 	
 	public ChatClientImpl(String server, String username, int port) {
+		
 		this.server = server;
 		this.username = username;
 		this.port = port;
@@ -74,10 +77,12 @@ public class ChatClientImpl implements ChatClient {
             output = new ObjectOutputStream(socket.getOutputStream());
 
             output.writeObject(username); // Enviar el nombre de usuario al servidor
-            System.out.println("Conectado al servidor como: " + username);
+            System.out.println("[WELCOME] Conectado al servidor como: " + username);
 
             new Thread(new ChatClientListener()).start(); // Hilo para escuchar mensajes
 
+            // TODO hacer el manejo de mensajes en un método aparte
+            
             Scanner scanner = new Scanner(System.in);
             
             while (carryOn) {
@@ -88,7 +93,7 @@ public class ChatClientImpl implements ChatClient {
                     carryOn = false;
                 }
                 else {
-                    String signedMessage = "Amanda Pérez patrocina el mensaje: " + message;
+                    String signedMessage = "@" + username + ": " + message;
                     sendMessage(new ChatMessage(id, MessageType.MESSAGE, signedMessage));
                 }
             }
@@ -98,7 +103,7 @@ public class ChatClientImpl implements ChatClient {
 
         } 
 		catch (IOException e) {
-            System.out.println("ERROR al conectar con el servidor: " + e.getMessage());
+            System.out.println("[ERROR - Client] Fallo al conectar con el servidor -> " + e.getMessage());
             return false;
         }
 	}
@@ -110,22 +115,23 @@ public class ChatClientImpl implements ChatClient {
             output.writeObject(msg);
         } 
 		catch (IOException e) {
-            System.out.println("ERROR enviando mensaje: " + e.getMessage());
+            System.out.println("[ERROR - Client] Fallo al enviar mensaje -> " + e.getMessage());
         }
 	}
 
 	@Override
 	public void disconnect() {
 		
+		carryOn = false;
 		try {
             if (socket != null) socket.close();
             if (input != null) input.close();
             if (output != null) output.close();
 
-            System.out.println("Desconectado del servidor.");
+            System.out.println("[EXIT] Desconectado del servidor");
         } 
 		catch (IOException e) {
-            System.out.println("ERROR al cerrar la conexión: " + e.getMessage());
+            System.out.println("[ERROR - Client] Fallo al cerrar la conexión -> " + e.getMessage());
         }
 	}
 	
@@ -137,13 +143,18 @@ public class ChatClientImpl implements ChatClient {
 		public void run() {
 			
 			try {
-	            while (carryOn) {
+				while (carryOn) {
 	                ChatMessage msg = (ChatMessage) input.readObject();
-	                System.out.println(msg.getMessage());
+	                System.out.println(msg.getMessage());   
 	            }
 	        } 
-			catch (IOException | ClassNotFoundException e) {
-	            System.out.println("Error recibiendo mensajes:" + e.getMessage());
+			catch (IOException e) {
+	            if (carryOn) {
+	                System.out.println("[ERROR - Client] Fallo al recibir mensajes ->" + e.getMessage());
+	            }
+	        } 
+	        catch (ClassNotFoundException e) {
+	            System.out.println("[ERROR - Client] Fallo al recibir mensajes ->" + e.getMessage());
 	        }
 		}
 		

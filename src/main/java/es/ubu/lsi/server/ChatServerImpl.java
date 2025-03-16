@@ -37,8 +37,9 @@ public class ChatServerImpl implements ChatServer {
             fileHandler.setFormatter(new SimpleFormatter());
             logger.addHandler(fileHandler);
             logger.setLevel(Level.INFO);
-        } catch (IOException e) {
-            System.out.println("Error configurando el logger.");
+        } 
+        catch (IOException e) {
+            System.out.println("[ERROR - Logger] Fallo al configurar el logger: " + e.getMessage());
         }
     }
 	
@@ -66,28 +67,30 @@ public class ChatServerImpl implements ChatServer {
 		
 		try (ServerSocket serverSocket = new ServerSocket(port)) {
             
-			System.out.println("<Servidor iniciado en el puerto " + port + ">");
+			System.out.println("[INFO - Server] " + sdf.format(new Date()) + 
+								" - Servidor iniciado en el puerto " + port);
 
             while (alive) {
                 Socket socket = serverSocket.accept();
                 clientId++; // Incrementamos el contador de clientes
-                System.out.println(sdf.format(new Date()) + " - Nuevo cliente conectado: ID " + clientId);
                 
                 // Creamos un hilo para el cliente
                 ServerThreadForClient thread = new ServerThreadForClient(clientId, socket);
-                clients.put(clientId, thread); // Guardamos el cliente en el mapa
+                clients.put(clientId, thread);
                 thread.start();
             }
-        } catch (IOException e) {
-        	shutdown();
-            System.out.println("ERROR en el servidor: " + e.getMessage());
-            e.printStackTrace();
+        } 
+		catch (IOException e) {
+			shutdown();
+			System.out.println("[ERROR - Server] " + e.getMessage());
+			e.printStackTrace();
         }
 	}
 
 	@Override
 	public void shutdown() {
-		System.out.println("<Apagando servidor...>");
+		
+		System.out.println("[INFO - Server] " + sdf.format(new Date()) + " - Apagando servidor...");
         alive = false;
 
         for (ServerThreadForClient client : clients.values()) {
@@ -99,10 +102,13 @@ public class ChatServerImpl implements ChatServer {
 	@Override
 	public void broadcast(ChatMessage message) {
 		
-		logger.info(message.getMessage());
+		String wrappedMessage = "[MSG] " + sdf.format(new Date()) + 
+								" - Amanda Pérez patrocina el mensaje -> " + message.getMessage();
+		
+		//logger.info(message.getMessage());
 		
 		for (ServerThreadForClient client : clients.values()) {
-            client.sendMessage(message);
+            client.sendMessage(new ChatMessage(message.getId(), message.getType(), wrappedMessage));
         }
 	}
 
@@ -111,7 +117,7 @@ public class ChatServerImpl implements ChatServer {
 		
 		if (clients.containsKey(id)) {
             clients.remove(id);
-            System.out.println("<Cliente " + id + " eliminado>");
+            System.out.println("[INFO - Server] " + sdf.format(new Date()) + " - Cliente " + id + " desconectado");
         }
 	}
 	
@@ -122,6 +128,7 @@ public class ChatServerImpl implements ChatServer {
 		private int id;
 		
 		private String username;
+		
 		
 		private Socket socket;
         
@@ -136,16 +143,16 @@ public class ChatServerImpl implements ChatServer {
             this.socket = socket;
             
             try {
-            	
             	output = new ObjectOutputStream(socket.getOutputStream());
-                input = new ObjectInputStream(socket.getInputStream());
+            	input = new ObjectInputStream(socket.getInputStream());
                 
                 username = (String) input.readObject();
                 
-                System.out.println("Usuario " + username + " conectado con ID " + id);
+                System.out.println("[INFO - Server] " + sdf.format(new Date()) + " - Nuevo usuario \'" 
+                					+ username + "\' conectado (ID=" + clientId + ")");
             } 
             catch (IOException | ClassNotFoundException e) {
-                System.out.println("ERROR con el cliente " + id);
+                System.out.println("[ERROR - Server] Fallo con el cliente " + id + ": " + e.getMessage());
             }
         }
         
@@ -165,7 +172,6 @@ public class ChatServerImpl implements ChatServer {
                             break;
                         case LOGOUT:
                             running = false;
-                            System.out.println(sdf.format(new Date())+" - LOGOUT Cliente " + id);
                             remove(id);
                             break;
                         default:
@@ -174,25 +180,24 @@ public class ChatServerImpl implements ChatServer {
                 }
             } 
             catch (IOException | ClassNotFoundException e) {
-                System.out.println("Cliente " + id + " desconectado inesperadamente.");
-                e.printStackTrace();
+                System.out.println("[ERROR - Server] Cliente " + id + " desconectado inesperadamente.");
             } 
             finally {
                 closeConnection();
             }
         }
         
-        public void sendMessage(ChatMessage message) {
+        private void sendMessage(ChatMessage message) {
             
         	try {
                 output.writeObject(message);
             } 
             catch (IOException e) {
-                System.out.println("ERROR enviando mensaje a " + username);
+                System.out.println("[ERROR - Server] Fallo al enviar mensaje a " + username);
             }
         }
 
-        public void closeConnection() {
+        private void closeConnection() {
             
         	try {
                 if (socket != null) socket.close();
@@ -200,7 +205,7 @@ public class ChatServerImpl implements ChatServer {
                 if (output != null) output.close();
             } 
         	catch (IOException e) {
-                System.out.println("ERROR cerrando conexión del cliente " + id);
+                System.out.println("[ERROR - Server] Fallo al cerrar conexión del cliente " + id);
             }
         }
 		
