@@ -9,6 +9,7 @@ import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.logging.*;
 
 import es.ubu.lsi.common.ChatMessage;
 
@@ -28,6 +29,21 @@ public class ChatServerImpl implements ChatServer {
 	
 	// --------------------------------------------------------------------------------
 	
+	private static final Logger logger = Logger.getLogger(ChatServerImpl.class.getName());
+
+    static {
+        try {
+            FileHandler fileHandler = new FileHandler("chat.log", true);
+            fileHandler.setFormatter(new SimpleFormatter());
+            logger.addHandler(fileHandler);
+            logger.setLevel(Level.INFO);
+        } catch (IOException e) {
+            System.out.println("Error configurando el logger.");
+        }
+    }
+	
+	// --------------------------------------------------------------------------------
+	
 	public ChatServerImpl(int port) {
 		
 		this.port = port;
@@ -39,7 +55,6 @@ public class ChatServerImpl implements ChatServer {
 	
 	public static void main(String[] args) {
 		
-		// No recibe argumentos en la invocación
 	    ChatServerImpl server = new ChatServerImpl(DEFAULT_PORT);
 	    server.startup();
 	}
@@ -84,6 +99,8 @@ public class ChatServerImpl implements ChatServer {
 	@Override
 	public void broadcast(ChatMessage message) {
 		
+		logger.info(message.getMessage());
+		
 		for (ServerThreadForClient client : clients.values()) {
             client.sendMessage(message);
         }
@@ -123,7 +140,7 @@ public class ChatServerImpl implements ChatServer {
             	output = new ObjectOutputStream(socket.getOutputStream());
                 input = new ObjectInputStream(socket.getInputStream());
                 
-                username = (String) input.readObject(); //TODO cambiar para que lea el username correcto
+                username = (String) input.readObject();
                 
                 System.out.println("Usuario " + username + " conectado con ID " + id);
             } 

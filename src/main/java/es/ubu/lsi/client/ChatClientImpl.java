@@ -7,6 +7,7 @@ import java.net.Socket;
 import java.util.Scanner;
 
 import es.ubu.lsi.common.ChatMessage;
+import es.ubu.lsi.common.ChatMessage.MessageType;
 
 public class ChatClientImpl implements ChatClient {
 
@@ -36,6 +37,7 @@ public class ChatClientImpl implements ChatClient {
 		this.server = server;
 		this.username = username;
 		this.port = port;
+		this.id = username.hashCode();
 	}
 	
 	public static void main(String[] args) {
@@ -58,9 +60,7 @@ public class ChatClientImpl implements ChatClient {
         }
 
         ChatClientImpl client = new ChatClientImpl(server, username, port);
-        if (!client.start()) {
-            System.out.println("ERROR - No se pudo conectar al servidor.");
-        }
+        client.start();
 	}
 	
 	// --------------------------------------------------------------------------------
@@ -86,9 +86,10 @@ public class ChatClientImpl implements ChatClient {
                 if (message.equalsIgnoreCase("logout")) {
                     sendMessage(new ChatMessage(id, ChatMessage.MessageType.LOGOUT, ""));
                     carryOn = false;
-                } 
+                }
                 else {
-                    sendMessage(new ChatMessage(id, ChatMessage.MessageType.MESSAGE, message));
+                    String signedMessage = "Amanda Pérez patrocina el mensaje: " + message;
+                    sendMessage(new ChatMessage(id, MessageType.MESSAGE, signedMessage));
                 }
             }
             scanner.close();
