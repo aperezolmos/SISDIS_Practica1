@@ -4,7 +4,9 @@ import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.net.Socket;
+import java.util.HashSet;
 import java.util.Scanner;
+import java.util.Set;
 
 import es.ubu.lsi.common.ChatMessage;
 import es.ubu.lsi.common.ChatMessage.MessageType;
@@ -33,6 +35,9 @@ public class ChatClientImpl implements ChatClient {
 	
     private ObjectOutputStream output;
     
+    
+    private Set<String> bannedUsers;
+    
     // --------------------------------------------------------------------------------
 	
 	public ChatClientImpl(String server, String username, int port) {
@@ -41,6 +46,7 @@ public class ChatClientImpl implements ChatClient {
 		this.username = username;
 		this.port = port;
 		this.id = username.hashCode();
+		this.bannedUsers = new HashSet<>();
 	}
 	
 	public static void main(String[] args) {
@@ -81,23 +87,8 @@ public class ChatClientImpl implements ChatClient {
 
             new Thread(new ChatClientListener()).start(); // Hilo para escuchar mensajes
 
-            // TODO hacer el manejo de mensajes en un método aparte
-            
-            Scanner scanner = new Scanner(System.in);
-            
-            while (carryOn) {
-                String message = scanner.nextLine();
-                
-                if (message.equalsIgnoreCase("logout")) {
-                    sendMessage(new ChatMessage(id, ChatMessage.MessageType.LOGOUT, ""));
-                    carryOn = false;
-                }
-                else {
-                    String signedMessage = "@" + username + ": " + message;
-                    sendMessage(new ChatMessage(id, MessageType.MESSAGE, signedMessage));
-                }
-            }
-            scanner.close();
+            handleInput();
+
             disconnect();
             return true;
 
@@ -135,6 +126,35 @@ public class ChatClientImpl implements ChatClient {
         }
 	}
 	
+	private void handleInput() {
+		
+		Scanner scanner = new Scanner(System.in);
+        
+        while (carryOn) {
+            String message = scanner.nextLine();
+            
+            if (message.equalsIgnoreCase("logout")) {
+                sendMessage(new ChatMessage(id, ChatMessage.MessageType.LOGOUT, ""));
+                carryOn = false;
+            }
+            else if (message.startsWith("ban ")) {
+                String bannedUser = message.substring(4).trim();
+                bannedUsers.add(bannedUser);
+                sendMessage(new ChatMessage(id, MessageType.MESSAGE, "[BAN] " + username + " ha baneado a " + bannedUser));
+            } 
+            else if (message.startsWith("unban ")) {
+            	String unbannedUser = message.substring(6).trim();
+            	bannedUsers.remove(unbannedUser);
+            	sendMessage(new ChatMessage(id, MessageType.MESSAGE, "[UNBAN] " + username + " ha desbloqueado a " + unbannedUser));
+            }
+            else {
+                String signedMessage = "@" + username + ": " + message;
+                sendMessage(new ChatMessage(id, MessageType.MESSAGE, signedMessage));
+            }
+        }
+        scanner.close();
+	}
+	
 	// --------------------------------------------------------------------------------
 	
 	public class ChatClientListener implements Runnable {
@@ -145,7 +165,11 @@ public class ChatClientImpl implements ChatClient {
 			try {
 				while (carryOn) {
 	                ChatMessage msg = (ChatMessage) input.readObject();
-	                System.out.println(msg.getMessage());   
+	                String sender = (msg.getMessage().split("@")[1]).split(":")[0].trim();
+	                
+	                if (!bannedUsers.contains(sender)) { // Se ignora el mensaje si el remitente está bloqueado
+	                	System.out.println(msg.getMessage());  
+	                }
 	            }
 	        } 
 			catch (IOException e) {

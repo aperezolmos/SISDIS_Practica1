@@ -17,6 +17,7 @@ public class ChatServerImpl implements ChatServer {
 
 	private static final int DEFAULT_PORT = 1500;
 	
+	
 	private static int clientId;
 	
 	private static SimpleDateFormat sdf;
@@ -24,6 +25,7 @@ public class ChatServerImpl implements ChatServer {
 	private int port;
 	
 	private boolean alive;
+	
 	
 	private Map<Integer, ServerThreadForClient> clients;
 	
@@ -102,14 +104,21 @@ public class ChatServerImpl implements ChatServer {
 	@Override
 	public void broadcast(ChatMessage message) {
 		
-		String wrappedMessage = "[MSG] " + sdf.format(new Date()) + 
-								" - Amanda Pérez patrocina el mensaje -> " + message.getMessage();
-		
-		//logger.info(message.getMessage());
-		
-		for (ServerThreadForClient client : clients.values()) {
-            client.sendMessage(new ChatMessage(message.getId(), message.getType(), wrappedMessage));
-        }
+		if (message.getMessage().startsWith("[BAN]") || message.getMessage().startsWith("[UNBAN]")) {
+			// Si es un mensaje de ban/unban, solo se muestra en el servidor
+			String text = message.getMessage().split("]")[1].trim();
+	        System.out.println("[BAN/UNBAN] " + sdf.format(new Date()) + " - " + text);
+	    } 
+		else {
+			String wrappedMessage = "[MSG] " + sdf.format(new Date()) + 
+					" - Amanda Pérez patrocina el mensaje -> " + message.getMessage();
+			
+			//logger.info(message.getMessage());
+			
+			for (ServerThreadForClient client : clients.values()) {
+				client.sendMessage(new ChatMessage(message.getId(), message.getType(), wrappedMessage));
+			}
+	    }
 	}
 
 	@Override
