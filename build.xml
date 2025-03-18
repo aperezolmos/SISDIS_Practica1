@@ -1,0 +1,20 @@
+<project name="P1_Chat" default="javadoc" basedir=".">
+    
+    <property name="src.dir" value="src/main/java"/>
+    <property name="doc.dir" value="doc"/>
+
+    <target name="javadoc">
+        <!-- Crear la carpeta doc si no existe -->
+        <mkdir dir="${doc.dir}"/>
+
+        <!-- Generar la documentación Javadoc -->
+        <javadoc destdir="${doc.dir}" access="private" windowtitle="P1_Chat Javadoc">
+            <fileset dir="${src.dir}">
+                <include name="**/*.java"/>
+            </fileset>
+        </javadoc>
+
+        <echo>Javadoc generado en la carpeta ${doc.dir}</echo>
+    </target>
+
+</project>

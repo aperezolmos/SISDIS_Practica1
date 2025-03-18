@@ -113,7 +113,6 @@ public class ChatClientImpl implements ChatClient {
             id = ((ChatMessage) input.readObject()).getId();
             
             System.out.println("[WELCOME] Conectado al servidor como: " + username);
-            //System.out.println("[WELCOME] ID: " + id); //TODO: borrar. debug
 
             new Thread(new ChatClientListener()).start(); // Hilo para escuchar mensajes
 

@@ -11,7 +11,6 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
-import java.util.logging.*;
 
 import es.ubu.lsi.common.ChatMessage;
 import es.ubu.lsi.common.ChatMessage.MessageType;
@@ -44,28 +43,11 @@ public class ChatServerImpl implements ChatServer {
 	/** Almacena los IDs de los clientes conectados junto a sus hilos correspondientes. */
 	private Map<Integer, ServerThreadForClient> clients = new HashMap<>();
 	
-	/** Almacena la relación 'ID cliente -> nombre de usuario'. */
+	/** Almacena la relación 'ID cliente - nombre de usuario'. */
 	private Map<Integer, String> clientUsernames = new HashMap<>();
 	
-	/** Almacena la relación 'nombre de usuario -> lista de usuarios baneados'. */
+	/** Almacena la relación 'nombre de usuario - lista de usuarios baneados'. */
 	private Map<String, Set<String>> banListPerClient = new HashMap<>();
-	
-	// --------------------------------------------------------------------------------
-	
-	/** Logger. */
-	private static final Logger logger = Logger.getLogger(ChatServerImpl.class.getName());
-
-    static {
-        try {
-            FileHandler fileHandler = new FileHandler("chat.log", true);
-            fileHandler.setFormatter(new SimpleFormatter());
-            logger.addHandler(fileHandler);
-            logger.setLevel(Level.INFO);
-        } 
-        catch (IOException e) {
-            System.out.println("[ERROR - Logger] Fallo al configurar el logger: " + e.getMessage());
-        }
-    }
 	
 	// --------------------------------------------------------------------------------
 	
@@ -136,15 +118,14 @@ public class ChatServerImpl implements ChatServer {
 	public void broadcast(ChatMessage message) {
 		
 		String senderUsername = clientUsernames.get(message.getId());
-		//System.out.println("SENDER:|" + senderUsername + "|"); // TODO: borrar. debug
 	    
 	    for (ServerThreadForClient client : clients.values()) {
 	        String recipientUsername = clientUsernames.get(client.id);
 
 	        // Verificamos si el remitente está en la lista de baneados del destinatario
 	        Set<String> bannedUsers = banListPerClient.get(recipientUsername);
+	        
 	        if (bannedUsers == null || !bannedUsers.contains(senderUsername)) {
-	        	//System.out.println("RECIPIENT:|" + recipientUsername + "|"); // TODO: borrar. debug
 	            client.sendMessage(message);
 	        }
 	    }
@@ -153,9 +134,10 @@ public class ChatServerImpl implements ChatServer {
 	@Override
 	public void remove(int id) {
 		
-		if (clients.containsKey(id)) { // TODO: añadir nombre usuario??
+		if (clients.containsKey(id)) {
             clients.remove(id);
-            System.out.println("[INFO - Server] " + sdf.format(new Date()) + " - Cliente " + id + " desconectado");
+            System.out.println("[INFO - Server] " + sdf.format(new Date()) + " - Cliente " +
+            					clientUsernames.get(id) + " (ID="+ id + ") desconectado");
         }
 	}
 	
@@ -180,7 +162,6 @@ public class ChatServerImpl implements ChatServer {
 			String wrappedMessage = "[MSG] " + sdf.format(new Date()) + 
 					" - Amanda Pérez patrocina el mensaje -> " + message.getMessage();
 			
-			//logger.info(message.getMessage());
 			broadcast(new ChatMessage(message.getId(), message.getType(), wrappedMessage));
 	    }
 	}
