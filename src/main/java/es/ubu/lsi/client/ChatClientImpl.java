@@ -4,9 +4,7 @@ import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.net.Socket;
-import java.util.HashSet;
 import java.util.Scanner;
-import java.util.Set;
 
 import es.ubu.lsi.common.ChatMessage;
 import es.ubu.lsi.common.ChatMessage.MessageType;
@@ -52,10 +50,6 @@ public class ChatClientImpl implements ChatClient {
 	/** Flujo de salida para enviar mensajes al servidor. */
     private ObjectOutputStream output;
     
-    
-    /** Conjunto de usuarios baneados por el cliente actual. */
-    private Set<String> bannedUsers;
-    
     // --------------------------------------------------------------------------------
 	
     /**
@@ -70,8 +64,6 @@ public class ChatClientImpl implements ChatClient {
 		this.server = server;
 		this.port = port;
 		this.username = username;
-		this.id = username.hashCode();
-		this.bannedUsers = new HashSet<>();
 	}
 	
 	/**
@@ -116,8 +108,12 @@ public class ChatClientImpl implements ChatClient {
             input = new ObjectInputStream(socket.getInputStream());
             output = new ObjectOutputStream(socket.getOutputStream());
 
-            output.writeObject(username); // Enviar el nombre de usuario al servidor
+            // El cliente envía su nombre de usuario al servidor y el servidor le manda su ID asociado
+            output.writeObject(username);
+            id = ((ChatMessage) input.readObject()).getId();
+            
             System.out.println("[WELCOME] Conectado al servidor como: " + username);
+            //System.out.println("[WELCOME] ID: " + id); //TODO: borrar. debug
 
             new Thread(new ChatClientListener()).start(); // Hilo para escuchar mensajes
 
@@ -127,7 +123,7 @@ public class ChatClientImpl implements ChatClient {
             return true;
 
         } 
-		catch (IOException e) {
+		catch (IOException | ClassNotFoundException e) {
             System.out.println("[ERROR - Client] Fallo al conectar con el servidor -> " + e.getMessage());
             return false;
         }
@@ -176,15 +172,13 @@ public class ChatClientImpl implements ChatClient {
             }
             else if (message.startsWith("ban ")) {
                 String bannedUser = message.substring(4).trim();
-                bannedUsers.add(bannedUser);
-                sendMessage(new ChatMessage(id, MessageType.MESSAGE, "[BAN] " + username + " ha baneado a " + bannedUser));
+                sendMessage(new ChatMessage(id, MessageType.MESSAGE, "[BAN]" + username + " ha baneado a " + bannedUser));
             } 
             else if (message.startsWith("unban ")) {
             	String unbannedUser = message.substring(6).trim();
-            	bannedUsers.remove(unbannedUser);
-            	sendMessage(new ChatMessage(id, MessageType.MESSAGE, "[UNBAN] " + username + " ha desbaneado a " + unbannedUser));
+            	sendMessage(new ChatMessage(id, MessageType.MESSAGE, "[UNBAN]" + username + " ha desbaneado a " + unbannedUser));
             }
-            else {
+            else { // TODO: no sería del todo 'necesario' porque ahora el servidor almacena los usernames
                 String signedMessage = "@" + username + ": " + message;
                 sendMessage(new ChatMessage(id, MessageType.MESSAGE, signedMessage));
             }
@@ -208,12 +202,8 @@ public class ChatClientImpl implements ChatClient {
 			
 			try {
 				while (carryOn) {
-	                ChatMessage msg = (ChatMessage) input.readObject();
-	                String sender = (msg.getMessage().split("@")[1]).split(":")[0].trim();
-	                
-	                if (!bannedUsers.contains(sender)) { // Se ignora el mensaje si el remitente está bloqueado
-	                	System.out.println(msg.getMessage());  
-	                }
+					ChatMessage msg = (ChatMessage) input.readObject();
+					System.out.println(msg.getMessage()); 
 	            }
 	        } 
 			catch (IOException e) {

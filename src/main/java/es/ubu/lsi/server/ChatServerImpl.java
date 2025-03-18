@@ -8,10 +8,13 @@ import java.net.Socket;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
 import java.util.logging.*;
 
 import es.ubu.lsi.common.ChatMessage;
+import es.ubu.lsi.common.ChatMessage.MessageType;
 
 /**
  * Implementación del servidor de chat.
@@ -38,11 +41,14 @@ public class ChatServerImpl implements ChatServer {
 	private boolean alive;
 	
 	
-	/**
-	 * Mapa que almacena los IDs de los clientes conectados junto 
-	 * a sus hilos correspondientes. 
-	 */
-	private Map<Integer, ServerThreadForClient> clients;
+	/** Almacena los IDs de los clientes conectados junto a sus hilos correspondientes. */
+	private Map<Integer, ServerThreadForClient> clients = new HashMap<>();
+	
+	/** Almacena la relación 'ID cliente -> nombre de usuario'. */
+	private Map<Integer, String> clientUsernames = new HashMap<>();
+	
+	/** Almacena la relación 'nombre de usuario -> lista de usuarios baneados'. */
+	private Map<String, Set<String>> banListPerClient = new HashMap<>();
 	
 	// --------------------------------------------------------------------------------
 	
@@ -74,7 +80,6 @@ public class ChatServerImpl implements ChatServer {
 		clientId = 0;
 		sdf = new SimpleDateFormat("HH:mm:ss");
 		this.alive = true;
-		this.clients = new HashMap<>();
 	}
 	
 	/**
@@ -130,15 +135,25 @@ public class ChatServerImpl implements ChatServer {
 	@Override
 	public void broadcast(ChatMessage message) {
 		
-		for (ServerThreadForClient client : clients.values()) {
-			client.sendMessage(message);
-		}
+		String senderUsername = clientUsernames.get(message.getId());
+		//System.out.println("SENDER:|" + senderUsername + "|"); // TODO: borrar. debug
+	    
+	    for (ServerThreadForClient client : clients.values()) {
+	        String recipientUsername = clientUsernames.get(client.id);
+
+	        // Verificamos si el remitente está en la lista de baneados del destinatario
+	        Set<String> bannedUsers = banListPerClient.get(recipientUsername);
+	        if (bannedUsers == null || !bannedUsers.contains(senderUsername)) {
+	        	//System.out.println("RECIPIENT:|" + recipientUsername + "|"); // TODO: borrar. debug
+	            client.sendMessage(message);
+	        }
+	    }
 	}
 
 	@Override
 	public void remove(int id) {
 		
-		if (clients.containsKey(id)) {
+		if (clients.containsKey(id)) { // TODO: añadir nombre usuario??
             clients.remove(id);
             System.out.println("[INFO - Server] " + sdf.format(new Date()) + " - Cliente " + id + " desconectado");
         }
@@ -151,11 +166,16 @@ public class ChatServerImpl implements ChatServer {
 	 */
 	private void handleMessage(ChatMessage message) {
 		
-		if (message.getMessage().startsWith("[BAN]") || message.getMessage().startsWith("[UNBAN]")) {
-			// Si es un mensaje de ban/unban, solo se muestra en el servidor
+		if (message.getMessage().startsWith("[BAN]")) {
 			String text = message.getMessage().split("]")[1].trim();
-	        System.out.println("[BAN/UNBAN] " + sdf.format(new Date()) + " - " + text);
+			handleBan(text);
+			System.out.println("[BAN] " + sdf.format(new Date()) + " - " + text);
 	    } 
+		else if (message.getMessage().startsWith("[UNBAN]")) {
+			String text = message.getMessage().split("]")[1].trim();
+			handleUnban(text);
+			System.out.println("[UNBAN] " + sdf.format(new Date()) + " - " + text);
+		}
 		else {
 			String wrappedMessage = "[MSG] " + sdf.format(new Date()) + 
 					" - Amanda Pérez patrocina el mensaje -> " + message.getMessage();
@@ -163,6 +183,32 @@ public class ChatServerImpl implements ChatServer {
 			//logger.info(message.getMessage());
 			broadcast(new ChatMessage(message.getId(), message.getType(), wrappedMessage));
 	    }
+	}
+	
+	/**
+	 * Maneja un mensaje de BAN y añade un usuario a la lista de usuarios 
+	 * baneados del cliente.
+	 * 
+	 * @param text Texto del mensaje
+	 */
+	private void handleBan(String text) {
+		
+		String username = text.split("ha baneado a")[0].trim();
+		String userBanned = text.split("ha baneado a")[1].trim();
+		banListPerClient.computeIfAbsent(username, k -> new HashSet<>()).add(userBanned);
+	}
+	
+	/**
+	 * Maneja un mensaje de UNBAN y elimina un usuario de la lista de usuarios 
+	 * baneados del cliente.
+	 * 
+	 * @param text Texto del mensaje
+	 */
+	private void handleUnban(String text) {
+		
+		String username = text.split("ha desbaneado a")[0].trim();
+		String userBanned = text.split("ha desbaneado a")[1].trim();
+		banListPerClient.getOrDefault(username, new HashSet<>()).remove(userBanned);
 	}
 	
 	// --------------------------------------------------------------------------------
@@ -204,7 +250,10 @@ public class ChatServerImpl implements ChatServer {
             	output = new ObjectOutputStream(socket.getOutputStream());
             	input = new ObjectInputStream(socket.getInputStream());
                 
+            	// El cliente envía su nombre de usuario al servidor y el servidor le manda su ID asociado
                 username = (String) input.readObject();
+                clientUsernames.put(id, username);
+                sendMessage(new ChatMessage(id, MessageType.MESSAGE, "Registro correcto"));
                 
                 System.out.println("[INFO - Server] " + sdf.format(new Date()) + " - Nuevo usuario \'" 
                 					+ username + "\' conectado (ID=" + clientId + ")");
