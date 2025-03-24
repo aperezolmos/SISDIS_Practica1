@@ -18,6 +18,7 @@ import es.ubu.lsi.common.ChatMessage.MessageType;
 /**
  * Implementación del servidor de chat.
  * Acepta conexiones de clientes y retransmite mensajes.
+ * También gestiona las listas de usuarios baneados por cada cliente.
  * 
  * @author Amanda Pérez Olmos
  */
@@ -160,7 +161,7 @@ public class ChatServerImpl implements ChatServer {
 		}
 		else {
 			String wrappedMessage = "[MSG] " + sdf.format(new Date()) + 
-					" - Amanda Pérez patrocina el mensaje -> " + message.getMessage();
+					" - Amanda Perez patrocina el mensaje -> " + message.getMessage();
 			
 			broadcast(new ChatMessage(message.getId(), message.getType(), wrappedMessage));
 	    }

@@ -12,7 +12,6 @@ import es.ubu.lsi.common.ChatMessage.MessageType;
 /**
  * Implementación del cliente de chat.
  * Permite a un usuario conectarse a un servidor de chat y enviar/recibir mensajes.
- * También incluye funcionalidad para banear y desbanear usuarios.
  * 
  * @author Amanda Pérez Olmos
  */
